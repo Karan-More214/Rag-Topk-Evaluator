@@ -119,6 +119,12 @@ def generate_qa(req: GenerateRequest):
         raise HTTPException(422, str(e))
 
 
+@app.get("/favicon.svg", include_in_schema=False)
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return FileResponse(ROOT / "static/favicon.svg", media_type="image/svg+xml")
+
+
 @app.get("/")
 def index():
     return FileResponse(ROOT / "static/index.html")
