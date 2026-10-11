@@ -2,7 +2,7 @@
 
 ## Live demo
 
-Live: https://YOUR-APP.onrender.com
+Live: https://rag-topk-evaluator.onrender.com
 
 ## Screenshots
 
