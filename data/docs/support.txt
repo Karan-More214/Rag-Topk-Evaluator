@@ -1,0 +1,9 @@
+Support and Incident Response
+
+Support is available around the clock for incidents and during business hours for general questions. Every ticket is assigned a priority from P1 to P4 when it is opened.
+
+A P1 incident means the service is down or data is at risk. P1 incidents must be escalated to the on-call engineer within 15 minutes, and the first customer update is sent within 30 minutes. Updates continue every hour until the incident is resolved. A written postmortem is shared within 5 business days of resolution.
+
+A P2 incident is a major feature failure with a workaround. P2 tickets receive a first response within 2 hours. P3 tickets cover minor defects and receive a first response within 1 business day. P4 tickets are feature requests and questions, answered within 3 business days.
+
+The service level agreement promises 99.95 percent monthly uptime. If uptime falls below that target, customers receive a service credit of 10 percent of the monthly fee, increasing to 25 percent when uptime falls below 99 percent. Credits must be requested within 30 days of the end of the month.

@@ -1,0 +1,9 @@
+Data Retention and Deletion
+
+Uploaded files are kept for as long as the account is active. When an account is closed, files enter a grace period of 30 days during which the owner can restore them. After the grace period all files are permanently deleted from primary storage within 7 days.
+
+Backups are retained for 35 days and are overwritten on a rolling schedule, so deleted data may remain in a backup for up to 35 days after deletion. Backups are encrypted and are not used for any purpose other than disaster recovery.
+
+Customers can request an export of all their data at any time. Exports are generated as compressed archives in JSON and CSV format and are available for download for 72 hours. Large exports above 100 GB are split into multiple archives.
+
+Usage logs that do not contain personal data are kept for 13 months for capacity planning. Logs that contain personal data are anonymized after 90 days. Customers in the European Union may request erasure under the data protection regulation, and the privacy team completes such requests within 30 days.

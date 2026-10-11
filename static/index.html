@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RAG Top-K Evaluator</title>
+<style>
+:root{--ink:#0d0c0a;--ink2:#1b1913;--paper:#efece3;--hi:#ffd400;--red:#d8392b;--mute:#8a8574;--line:#38352a;
+--c1:#ffd400;--c2:#6ec1ff;--c3:#ff7a59;--c4:#9be58a;--c5:#d39bff;--c6:#f2f2f2;--c7:#ffb3c7;--c8:#8ee3d8;--c9:#c0a86a;--c10:#7a9cff;--c11:#ff9f1c;--c12:#b7e4ff}
+*{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font:14px/1.5 ui-monospace,Menlo,Consolas,monospace}
+.wrap{max-width:1200px;margin:0 auto;padding:20px 16px 60px}
+h1{font:900 30px/1 "Arial Narrow",Impact,sans-serif;text-transform:uppercase;letter-spacing:.02em;margin:0}
+h1 span{color:var(--hi)}.sub{color:var(--mute);margin:6px 0 20px;max-width:70ch}
+.grid{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:20px}
+@media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--ink2);border:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:10px}
+.card h2{font:800 13px/1 monospace;letter-spacing:.14em;text-transform:uppercase;margin:0;color:var(--hi)}
+label{display:flex;flex-direction:column;gap:4px;color:var(--mute);font-size:12px}
+input[type=text],input[type=number],textarea{background:var(--ink);color:var(--paper);border:1px solid var(--line);padding:8px;font:inherit;width:100%}
+textarea{min-height:170px;resize:vertical}
+input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--hi);outline-offset:1px}
+.btn{background:var(--hi);color:var(--ink);border:0;padding:10px 14px;font:700 13px monospace;letter-spacing:.06em;cursor:pointer}
+.btn.ghost{background:none;color:var(--paper);border:1px solid var(--line)}.btn:disabled{opacity:.5;cursor:wait}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row label{flex-direction:row;align-items:center;gap:6px;color:var(--paper)}
+.docs{display:flex;flex-direction:column;gap:4px;font-size:12px;max-height:120px;overflow:auto}
+.docs div{display:flex;justify-content:space-between;border-bottom:1px solid var(--line)}
+.msg{color:var(--red);min-height:1.4em}
+.reco{background:var(--hi);color:var(--ink);padding:14px}.reco b{font:900 22px "Arial Narrow",Impact,sans-serif;display:block}
+.reco.warn{background:var(--red);color:#fff}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}.tabs button{background:none;border:1px solid var(--line);color:var(--paper);padding:5px 10px;font:inherit;cursor:pointer}
+.tabs button[aria-pressed=true]{background:var(--paper);color:var(--ink)}
+.chartbox{overflow-x:auto}svg text{fill:var(--paper);font:11px monospace}svg .grid line{stroke:var(--line)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px}.legend i{display:inline-block;width:10px;height:10px;margin-right:5px}
+.tbl{overflow:auto;max-height:440px}table{border-collapse:collapse;width:100%;font-size:12px;font-variant-numeric:tabular-nums}
+th,td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}th:first-child,td:first-child{text-align:left}
+th{color:var(--mute);cursor:pointer;position:sticky;top:0;background:var(--ink2)}tr.best td{background:#ffd40026}
+th:focus-visible,summary:focus-visible{outline:2px solid var(--hi);outline-offset:-2px}
+.dl{display:flex;gap:8px;flex-wrap:wrap}.mid{display:flex;gap:3px;flex-wrap:wrap}
+.mid span{min-width:34px;padding:4px 6px;border:1px solid var(--line);text-align:center;font-size:12px}.mid span.m{border-color:var(--hi);color:var(--hi)}
+.note{color:var(--mute);font-size:12px}
+.warnb{background:var(--red);color:#fff;padding:1px 6px;font-size:11px}
+</style></head><body><div class="wrap">
+<h1>RAG <span>Top-K</span> Evaluator</h1>
+<p class="sub">Find the smallest k, chunk size and retriever that still finds the answer. Give it your documents and questions with the expected answer text; it reports recall@k, MRR and how much context each setting costs.</p>
+<div class="grid">
+<div style="display:flex;flex-direction:column;gap:16px">
+ <div class="card"><h2>1 · Documents</h2>
+  <input type="file" id="files" multiple accept=".txt,.md,.pdf" aria-label="Upload documents">
+  <div class="row"><button class="btn ghost" id="sample">Load sample</button><button class="btn ghost" id="clear">Clear</button></div>
+  <div class="docs" id="docs"><span class="note">No documents yet.</span></div></div>
+ <div class="card"><h2>2 · Questions</h2>
+  <label for="qa">JSON list of {question, answer, doc?}. The answer must appear verbatim (case-insensitive) in the source text; doc is optional.</label>
+  <textarea id="qa" spellcheck="false" placeholder='[{"question":"How often do keys rotate?","answer":"every 90 days"}]'></textarea>
+  <div class="row"><button class="btn ghost" id="gen">Generate questions</button><span class="note" id="genNote"></span></div><div class="note" id="capNote"></div></div>
+ <div class="card"><h2>3 · Sweep</h2>
+  <label for="sizes">Chunk sizes (words)<input type="text" id="sizes" value="16,32,64,128"></label>
+  <label for="ks">k values<input type="text" id="ks" value="1,2,3,5,8,12"></label>
+  <div class="row"><label for="ov">Overlap %<input type="number" id="ov" value="12.5" min="0" max="90" step="0.5" style="width:90px"></label>
+   <label for="tg">Target recall<input type="number" id="tg" value="0.9" min="0.1" max="1" step="0.05" style="width:90px"></label></div>
+  <div class="row"><label><input type="checkbox" class="rt" value="bm25" checked>BM25</label><label><input type="checkbox" class="rt" value="dense" checked>Dense</label><label><input type="checkbox" class="rt" value="hybrid" checked>Hybrid</label></div>
+  <label style="flex-direction:row;align-items:center;gap:6px;color:var(--paper)"><input type="checkbox" id="rr">Also compare with a reranker</label>
+  <button class="btn" id="run">RUN EVALUATION</button><div class="msg" id="msg" role="alert"></div></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px;min-width:0" id="out">
+ <div class="card"><span class="note">Results appear here. Load the sample and run to see how it looks.</span></div>
+</div></div></div>
+<script>
+let docs=[];const $=id=>document.getElementById(id);
+const nums=s=>s.split(",").map(x=>+x.trim()).filter(x=>x>0);
+function showDocs(){$("docs").innerHTML=docs.length?docs.map(d=>`<div><span>${esc(d.name)}</span><span>${d.text.split(/\s+/).length} words</span></div>`).join(""):'<span class="note">No documents yet.</span>'}
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+$("files").onchange=async e=>{const fd=new FormData();[...e.target.files].forEach(f=>fd.append("files",f));
+ try{const r=await fetch("/api/extract",{method:"POST",body:fd});if(!r.ok)throw new Error((await r.json()).detail);docs=docs.concat(await r.json());showDocs();$("msg").textContent=""}catch(x){$("msg").textContent=x.message}e.target.value=""};
+$("sample").onclick=async()=>{const s=await (await fetch("/api/sample")).json();docs=s.docs;$("qa").value=JSON.stringify(s.qa,null,1);showDocs()};
+$("clear").onclick=()=>{docs=[];$("qa").value="";showDocs()};
+let genLabel="Generate questions";
+// Without a local LLM provider the button still works (blanked-sentence questions); say so.
+fetch("/api/capabilities").then(r=>r.json()).then(c=>{if(!c.llm_questions){
+ genLabel="Generate questions (simple)";$("gen").textContent=genLabel;
+ $("capNote").textContent="Question generation needs a local Ollama; the evaluator works without it. Simple blanked-sentence questions are generated instead."+(c.ollama?" (Ollama is running: start the server with QA_PROVIDER=ollama.)":"")}}).catch(()=>{});
+$("gen").onclick=async()=>{const m=$("msg"),b=$("gen");m.textContent="";
+ if(!docs.length){m.textContent="Add documents first.";return}
+ b.disabled=true;b.textContent="GENERATING…";
+ try{const r=await fetch("/api/generate-qa",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({docs,n:12})});
+  const j=await r.json();if(!r.ok)throw new Error(typeof j.detail==="string"?j.detail:"Could not generate questions.");
+  $("qa").value=JSON.stringify(j.qa,null,1);$("genNote").textContent=j.method==="heuristic"?"Blanked-sentence questions (set QA_PROVIDER for natural ones).":`Written by ${j.method}`+(j.heuristic_used?` (${j.heuristic_used} fell back to blanked sentences)`:"")+"."}
+ catch(x){m.textContent=x.message}
+ b.disabled=false;b.textContent=genLabel};
+$("run").onclick=async()=>{const m=$("msg");m.textContent="";let qa;
+ try{qa=JSON.parse($("qa").value||"[]")}catch{m.textContent="Questions are not valid JSON.";return}
+ const b=$("run");b.disabled=true;b.textContent="RUNNING…";
+ try{const r=await fetch("/api/evaluate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({docs,qa,chunk_sizes:nums($("sizes").value),ks:nums($("ks").value),overlap_ratio:+$("ov").value/100,target_recall:+$("tg").value,rerank:$("rr").checked,retrievers:[...document.querySelectorAll(".rt:checked")].map(x=>x.value)})});
+  const j=await r.json();if(!r.ok)throw new Error(typeof j.detail==="string"?j.detail:"Invalid settings.");render(j)}catch(x){m.textContent=x.message}
+ b.disabled=false;b.textContent="RUN EVALUATION"};
+let data,metric="recall",sortK="recall",sortD=-1;
+const pct=v=>(v*100).toFixed(1)+"%",keyOf=r=>r.retriever+" · "+r.chunk_size+(r.rerank?" +rerank":"");
+const isBest=r=>{const b=data.recommendation;return keyOf(r)===keyOf(b)&&r.k===b.k};
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
+function csv(){const c=["retriever","chunk_size","overlap","rerank","k","recall","recall_answerable","mrr","context_tokens","chunks","evaluated","total","unanswerable_share"];
+ return [c.join(","),...data.rows.map(r=>c.map(k=>r[k]).join(","))].join("\n")}
+function markdown(){const r=data.recommendation,p=data.position_check,
+  un=Object.entries(data.unanswerable).map(([s,v])=>`chunk ${s}: ${v}`).join(", ");
+ return `# RAG Top-K report\n\n## Recommendation\n\n- Target recall: ${pct(r.target)} (${r.met_target?"reached":"NOT reached, best setting shown"})\n- Retriever: **${r.retriever}**${r.rerank?" + reranker":""}\n- Chunk size: **${r.chunk_size} words** (overlap ${r.overlap})\n- top_k: **${r.k}**\n- recall@${r.k}: ${pct(r.recall)} over all ${r.total} questions (${pct(r.recall_answerable)} over the ${r.evaluated} answerable)\n- MRR ${r.mrr.toFixed(2)}\n- Context: about ${r.context_tokens} words\n\n## Unanswerable (answer split across chunks)\n\n${un||"none"}\n\n## Lost in the middle (k=${p.k})\n\n${p.middle?`${p.in_middle} of ${p.found} found answers sit in middle positions ${p.middle[0]}-${p.middle[1]}.`:"k is below 3, so there is no middle."}\n`}
+function render(j){data=j;const r=j.recommendation,p=j.position_check;
+ const un=Object.entries(j.unanswerable).filter(([,v])=>v>0).map(([s,v])=>`${v} question${v>1?"s":""} at chunk size ${s}`).join(", ");
+ $("out").innerHTML=`<div class="reco ${r.met_target?"":"warn"}"><span>${r.met_target?`CHEAPEST SETTING REACHING ${(r.target*100).toFixed(0)}% RECALL`:`TARGET ${(r.target*100).toFixed(0)}% NOT REACHED · BEST FOUND`}</span>
+  <b>${r.retriever.toUpperCase()}${r.rerank?" + RERANK":""} · chunk ${r.chunk_size} words · top_k = ${r.k}</b>recall@${r.k} ${pct(r.recall)} · MRR ${r.mrr.toFixed(2)} · about ${r.context_tokens.toLocaleString()} words of context · ${r.evaluated} of ${r.total} questions answerable (recall of answerable only: ${pct(r.recall_answerable)})</div>
+  <div class="dl"><button class="btn ghost" id="dlcsv">Download results CSV</button><button class="btn ghost" id="dlmd">Download report (Markdown)</button></div>
+  ${un?`<div class="card note">No single chunk contains the full answer for: ${un}. These count as misses in recall, so small chunk sizes are not flattered; “Recall (answerable)” shows the number without them.</div>`:""}
+  <div class="card"><h2>Lost in the middle · top_k = ${p.k}</h2>${p.middle?
+   `<div class="mid">${Object.entries(p.positions).map(([n,c])=>`<span class="${n>=p.middle[0]&&n<=p.middle[1]?"m":""}">#${n}: ${c}</span>`).join("")}</div>
+    <span class="note">${p.in_middle} of ${p.found} found answers land in middle positions ${p.middle[0]}–${p.middle[1]} (highlighted). Models tend to under-use the middle of a long context${p.in_middle?"; consider putting the strongest chunks first and last.":"."}</span>`
+   :`<span class="note">With k below 3 there is no middle to lose anything in.</span>`}</div>
+  ${j.reranker?`<div class="card"><h2>Reranker comparison</h2><span class="note">${esc(j.reranker)} · mean recall over all retriever × chunk-size settings</span>
+   <table><thead><tr><th>k</th><th>Without</th><th>With</th><th>Change</th></tr></thead><tbody>${j.rerank_summary.map(s=>`<tr><td>${s.k}</td><td>${pct(s.without)}</td><td>${pct(s.with)}</td><td>${s.gain>0?"+":""}${(s.gain*100).toFixed(1)} pts</td></tr>`).join("")}</tbody></table></div>`:""}
+  <div class="card"><h2>Recall vs k</h2><div class="tabs" id="tabs"></div><div class="legend" id="lg"></div><div class="chartbox" id="chart"></div></div>
+  <div class="card"><h2>All results</h2><div class="tbl" id="tb"></div></div>`;
+ const t=$("tabs");t.innerHTML=[["recall","Recall@k"],["context_tokens","Context cost"]].map(([k,l])=>`<button aria-pressed="${k===metric}" data-m="${k}">${l}</button>`).join("");
+ t.onclick=e=>{if(e.target.dataset.m){metric=e.target.dataset.m;render(data)}};
+ $("dlcsv").onclick=()=>download("rag-topk-results.csv",csv(),"text/csv");
+ $("dlmd").onclick=()=>download("rag-topk-report.md",markdown(),"text/markdown");chart();table()}
+function chart(){const rows=data.rows,keys=[...new Set(rows.map(keyOf))];const ks=[...new Set(rows.map(r=>r.k))].sort((a,b)=>a-b);
+ const W=Math.max(640,ks.length*90),H=320,L=46,R=16,T=14,B=34;const max=metric==="recall"?1:Math.max(...rows.map(r=>r.context_tokens));
+ const X=i=>L+(ks.length>1?i*(W-L-R)/(ks.length-1):(W-L-R)/2),Y=v=>T+(H-T-B)*(1-v/max);
+ let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${metric} by k"><g class="grid">`;
+ for(let i=0;i<=4;i++){const v=max*i/4;s+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L-6}" y="${Y(v)+4}" text-anchor="end">${metric==="recall"?(v*100).toFixed(0)+"%":Math.round(v)}</text>`}
+ s+="</g>"+ks.map((k,i)=>`<text x="${X(i)}" y="${H-12}" text-anchor="middle">k=${k}</text>`).join("");
+ const best=data.recommendation;
+ keys.forEach((key,ci)=>{const c=`var(--c${ci%12+1})`;const pts=ks.map((k,i)=>{const r=rows.find(r=>keyOf(r)===key&&r.k===k);return r?[X(i),Y(r[metric])]:null}).filter(Boolean);
+  s+=`<polyline fill="none" stroke="${c}" stroke-width="2" points="${pts.map(p=>p.join(",")).join(" ")}"/>`+pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="${c}"/>`).join("")});
+ $("chart").innerHTML=s+"</svg>";
+ $("lg").innerHTML=keys.map((k,i)=>`<span><i style="background:var(--c${i%12+1})"></i>${k}</span>`).join("")}
+function table(){const rows=[...data.rows].sort((a,b)=>(a[sortK]>b[sortK]?1:a[sortK]<b[sortK]?-1:0)*sortD);const cols=[["retriever","Retriever"],["rerank","Rerank"],["chunk_size","Chunk"],["k","k"],["recall","Recall (all)"],["recall_answerable","Recall (answerable)"],["unanswerable_share","Split"],["mrr","MRR"],["context_tokens","Context words"],["chunks","Chunks"]];
+ $("tb").innerHTML=`<table><thead><tr>${cols.map(([k,l])=>`<th data-k="${k}" tabindex="0" aria-sort="${sortK===k?(sortD>0?"ascending":"descending"):"none"}">${l}${sortK===k?(sortD>0?" ▲":" ▼"):""}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr class="${isBest(r)?"best":""}"><td>${r.retriever}</td><td>${r.rerank?"yes":"no"}</td><td>${r.chunk_size}</td><td>${r.k}</td><td>${pct(r.recall)}</td><td>${pct(r.recall_answerable)}</td><td>${r.unanswerable_share>0.1?`<span class="warnb" title="More than 10% of questions have no single chunk containing the answer at this chunk size; they count as misses">⚠ ${(r.unanswerable_share*100).toFixed(0)}% unanswerable</span>`:r.unanswerable_share>0?(r.unanswerable_share*100).toFixed(0)+"%":"–"}</td><td>${r.mrr.toFixed(2)}</td><td>${r.context_tokens}</td><td>${r.chunks}</td></tr>`).join("")}</tbody></table>`;
+ const sort=e=>{const k=e.target.dataset.k;if(!k)return;sortD=sortK===k?-sortD:-1;sortK=k;table();
+  const th=$("tb").querySelector(`th[data-k="${k}"]`);if(th&&e.type==="keydown")th.focus()};
+ const head=$("tb").querySelector("thead");head.onclick=sort;
+ head.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();sort(e)}}}
+</script></body></html>

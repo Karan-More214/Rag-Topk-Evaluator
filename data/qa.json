@@ -1,0 +1,82 @@
+[
+ {
+  "question": "How many days do customers have to request a full refund if the product is not activated?",
+  "answer": "within 30 days of purchase",
+  "doc": "refunds.txt"
+ },
+ {
+  "question": "How long does the payments team take to review a refund request?",
+  "answer": "3 business days",
+  "doc": "refunds.txt"
+ },
+ {
+  "question": "Are gift cards refundable for cash?",
+  "answer": "never refundable for cash",
+  "doc": "refunds.txt"
+ },
+ {
+  "question": "How often do API keys rotate automatically?",
+  "answer": "every 90 days",
+  "doc": "security.txt"
+ },
+ {
+  "question": "How long are administrative audit logs retained?",
+  "answer": "retained for 400 days",
+  "doc": "security.txt"
+ },
+ {
+  "question": "Which encryption is used for data at rest?",
+  "answer": "AES-256",
+  "doc": "security.txt"
+ },
+ {
+  "question": "How quickly must a P1 incident be escalated to the on-call engineer?",
+  "answer": "within 15 minutes",
+  "doc": "support.txt"
+ },
+ {
+  "question": "What uptime does the service level agreement promise each month?",
+  "answer": "99.95 percent monthly uptime",
+  "doc": "support.txt"
+ },
+ {
+  "question": "What is the first response time for P3 tickets?",
+  "answer": "within 1 business day",
+  "doc": "support.txt"
+ },
+ {
+  "question": "How long is the grace period after an account is closed?",
+  "answer": "grace period of 30 days",
+  "doc": "data_retention.txt"
+ },
+ {
+  "question": "How long are backups retained?",
+  "answer": "retained for 35 days",
+  "doc": "data_retention.txt"
+ },
+ {
+  "question": "How long are data exports available for download?",
+  "answer": "available for download for 72 hours",
+  "doc": "data_retention.txt"
+ },
+ {
+  "question": "When does a cancelled credential stop working everywhere?",
+  "answer": "within 60 seconds",
+  "doc": "security.txt"
+ },
+ {
+  "question": "How soon will the security team respond to a bug report?",
+  "answer": "within 2 business days",
+  "doc": "security.txt"
+ },
+ {
+  "question": "What compensation do customers get when availability drops under the target?",
+  "answer": "service credit of 10 percent of the monthly fee",
+  "doc": "support.txt"
+ },
+ {
+  "question": "How long until logs lose identifying details?",
+  "answer": "anonymized after 90 days",
+  "doc": "data_retention.txt"
+ }
+]
